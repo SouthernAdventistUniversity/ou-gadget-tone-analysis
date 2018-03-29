@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<config>
+	<entry key="title">Tone Analysis</entry>
+	<entry key="description">Emotion and Sentiment Analysis</entry>
+	<entry key="types" private="true">sidebar</entry>
+	<entry key="initial_height" private="true">500</entry>
+</config>

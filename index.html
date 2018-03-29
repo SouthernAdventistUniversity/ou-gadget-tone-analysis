@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Watson Analysis</title>
+	<script
+			  src="https://code.jquery.com/jquery-3.3.1.min.js"
+			  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+			  crossorigin="anonymous"></script>
+	<script type="text/javascript" src="{{f:20933276}}"></script>
+	<link rel="stylesheet" type="text/css" href="http://a.cms.omniupdate.com/10/style.css?v=20180323154959">
+	
+	<style>
+		body {
+			background-color: inherit;
+			box-sizing: border-box;
+		}
+		
+		body * {
+			box-sizing: border-box;
+		}
+		
+		main {
+			height: 100%;
+			width: 100%;
+			padding: 10px;
+			overflow-y: hidden;
+		}
+		
+		ul {
+			margin: 0;
+			padding: 0 15px 15px 15px;
+		}
+		
+		li {
+			font-size: 13px;
+			line-height: 15px;
+			list-style: none;
+		}
+		
+		.emotionGraph {
+			display: block;
+			height: 10px;
+			width: 100%;
+			background-color: white;
+		}
+		.emotionGraph i {
+			display: block;
+			height: 10px;
+			background-color: rgb(0, 95, 177);
+		}
+	</style>
+</head>
+<body>
+	<main>
+		<b>Sentiment</b>
+		<ul id="sentiment">
+		</ul>
+		
+		<b>Emotions</b>
+		<ul id="emotions">
+		</ul>
+		
+		<button class="btn btn-success" id="action-button">Re-Analyse</button>
+		<div style="display: none;">
+			<!-- ouc:ob --><!-- /ouc:ob -->
+		</div>
+	</main>	
+		
+	<script type="text/javascript">
+const apihost = gadget.apihost;
+const callData = {
+	site: gadget.site,
+	authorization_token: gadget.token
+};		
+	
+const watsonURLs = {
+	sentiment : 'https://watson-api-explorer.mybluemix.net/alchemy-api/calls/html/HTMLGetTextSentiment',
+	emotion   : 'https://watson-api-explorer.mybluemix.net/alchemy-api/calls/html/HTMLGetEmotion'
+}
+		
+		
+gadget.ready(function() {
+	console.log('gadget', gadget);
+	
+	getPageContent();
+});	
+		
+function getPageContent() {
+	let stagingPath = '';
+	let pageData = callData;
+	
+	gadget.oucGetCurrentFileInfo().done(function(data) {
+		pageData.path = data.stagingPath;	
+		pageData.edit = false;
+		pageData.source = false;
+		
+		$.ajax({
+			method: 'GET',
+			url: apihost + '/files/content',
+			data: pageData
+		})
+		.done(function(data) {
+			getWatsonAnalysis(data);
+		})
+		.fail(function(err) {
+			console.log(err);
+		});
+	});
+}
+		
+function getWatsonAnalysis(data) {
+	let pageContent = data;	
+	
+	$.ajax({
+		method: 'POST',
+		url: watsonURLs.sentiment,
+		data: {
+			outputMode: 'json',
+			html: pageContent
+		}
+	})
+	.done(function(data) {
+		
+		console.log('sentiment', data);
+		
+		const $sentimentList = $('#sentiment');
+		const liTemplate   = '<li>{{type}} : {{val}}%</li>';
+
+		$sentimentList.empty();
+
+
+		let type  = toTitleCase(data.docSentiment.type);
+		let val   = Math.round(data.docSentiment.score * 100);
+		$sentimentList.append(liTemplate.replace('{{type}}', type).replace('{{val}}', val ));
+	
+	})
+	.fail(function(err) {
+		console.log('error', err);
+	});
+
+	$.ajax({
+		method: 'POST',
+		url: watsonURLs.emotion,
+		data: {
+			outputMode: 'json',
+			html: pageContent
+		}
+	})
+	.done(function(data) {
+		const $emotionList = $('#emotions');
+		const liTemplate   = '<li>{{name}} <span class="emotionGraph"><i  style="width: {{val}}%" /></span></li>';
+
+		$emotionList.empty();
+
+		for (let prop in data.docEmotions) {
+			let emotionPer = data.docEmotions[prop] * 100;
+			prop = toTitleCase(prop);
+			$emotionList.append(liTemplate.replace('{{name}}', prop).replace('{{val}}', emotionPer));
+		}			
+
+	})
+	.fail(function(err) {
+		console.log('error', err);
+	});
+	
+}
+		
+function toTitleCase(str) {
+    return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+}
+		
+$(function() {
+	
+	$('#action-button').on('click', function(e) {
+		getPageContent();
+	});
+})
+
+	</script>
+</body>
+</html>
